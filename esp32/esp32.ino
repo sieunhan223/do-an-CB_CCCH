@@ -10,6 +10,8 @@
 #include <WiFiClientSecure.h>
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Wire.h>
+#include <BH1750.h>
 
 //PIN List:
 #define SERVOR 15
@@ -17,28 +19,34 @@
 #define RAINSENSOR 2
 #define TOUCH 0
 #define LED 13
-#define LIGHT_SDA 12
-#define LIGHT_SCL 14
-#define PRESSURE_SDA 25
-#define PRESSURE_SCL 26
+//SDA_PIN: 21
+//SCL_PIN: 22
+//LightSensor Address I2C: 0x23
+//PressureSensor Address I2C: 0x77
 
-
+//DHT Constructor
 DHT dht(TEMP_HUMI, DHT22);
 float nhiet;
 float doam;
 String descriptionWeather;
 String idWeather;
 
+//create pass and ssid
 const char *ssid = "Redmi Note 11";
 const char *password = "1122334455";
 
+//Http Constructor
 String apiKey = "520a144824bf298dd6a3ab5cf8ab737e";
 WiFiClientSecure client;
 AsyncWebServer server(80);
 HTTPClient http;
 
+//Servo motor constructor
 Servo myservo;
 int pos;
+
+//Light sensor constructor
+BH1750 LightSensor;
 
 // Hàm thay thế các Tên trong html file
 String processor(const String &var)
@@ -57,6 +65,7 @@ String processor(const String &var)
 void setup()
 {
 
+  Wire.begin(23,22);
   Serial.begin(115200);
   //Connect wifi:
   Serial.println("Connecting...");
