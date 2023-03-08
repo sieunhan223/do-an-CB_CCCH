@@ -12,17 +12,19 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include <BH1750.h>
+#include <Adafruit_BMP085.h>
 
 //PIN List:
 #define SERVOR 15
 #define TEMP_HUMI 4
-#define RAINSENSOR 2
+#define RAINSENSOR_ANALOG 2
+#define RAINSENSOR_DIGITAL 12
 #define TOUCH 0
 #define LED 13
 //SDA_PIN: 21
 //SCL_PIN: 22
-//LightSensor Address I2C: 0x23
-//PressureSensor Address I2C: 0x77
+//LightSensor I2C Address : 0x23
+//PressureSensor I2C Address : 0x77
 
 //DHT Constructor
 DHT dht(TEMP_HUMI, DHT22);
@@ -47,6 +49,18 @@ int pos;
 
 //Light sensor constructor
 BH1750 LightSensor;
+float lux;
+
+//pressure sensor constructor
+Adafruit_BMP085 Bmp;
+float apsuat;
+
+//touch sensor constructor
+bool touch = 0;
+
+//rain sensor constructor
+double analogRain;
+bool digitalRain;
 
 // Hàm thay thế các Tên trong html file
 String processor(const String &var)
@@ -65,8 +79,9 @@ String processor(const String &var)
 void setup()
 {
 
-  Wire.begin(23,22);
+  Wire.begin();
   Serial.begin(115200);
+
   //Connect wifi:
   Serial.println("Connecting...");
   WiFi.mode(WIFI_STA);
@@ -87,20 +102,60 @@ void setup()
 
   //Init Servo in 15PIN:
   myservo.attach(SERVOR);
+
+  //Init Light Sensor:
+  LightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE,0x23);
+
+  //Init Pressure sensor:
+  Bmp.begin();
+
+  //Init Touch sensor:
+  pinMode(TOUCH,INPUT);
+
+  //Init Led:
+  pinMode(LED,OUTPUT);
+  digitalWrite(LED,LOW);
 }
 
 void loop()
 {
-  Serial.print("Analog: ");
-  Serial.print(analogRead(TEMP_HUMI));
-  Serial.print("\t");
-  Serial.print("Nhiet: ");
   nhiet = dht.readTemperature();
+  doam = dht.readHumidity();
+  lux = LightSensor.readLightLevel();
+  apsuat = Bmp.readPressure();
+  touch = digitalRead(TOUCH);
+  analogRain = analogRead(RAINSENSOR_ANALOG);
+  digitalRain = digitalRead(RAINSENSOR_DIGITAL);
+
+  Serial.print("Nhiet: ");
   Serial.print(nhiet);
+
   Serial.print("\t");
   Serial.print("Do am: ");
-  doam = dht.readHumidity();
   Serial.print(doam);
+
+  Serial.print("\t");
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.print(" lx");
+
+  Serial.print("\t");
+  Serial.print("Pressure = ");
+  Serial.print(apsuat);
+  Serial.print(" Pa");
+
+  Serial.print("\t");
+  Serial.print("Touch: ");
+  Serial.print(touch);
+  if (touch == 1) digitalWrite(LED,HIGH);
+  else            digitalWrite(LED,LOW);
+
+  Serial.print("\t");
+  Serial.print("analogRain: ");
+  Serial.print(analogRain);
+  Serial.print("\t");
+  Serial.print("digitalRain: ");
+  Serial.print(analogRain);
   Serial.println();
   delay(100);
 
