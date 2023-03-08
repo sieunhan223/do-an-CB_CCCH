@@ -1,4 +1,4 @@
-
+//Lib List
 #include <Servo.h>
 #include <HTTPClient.h>
 #include <DHT.h>
@@ -12,11 +12,18 @@
 #include <WiFi.h>
 
 //PIN List:
-#define SERVORPIN 15
-#define DHTPIN 4
+#define SERVOR 15
+#define TEMP_HUMI 4
+#define RAINSENSOR 2
+#define TOUCH 0
+#define LED 13
+#define LIGHT_SDA 12
+#define LIGHT_SCL 14
+#define PRESSURE_SDA 25
+#define PRESSURE_SCL 26
 
 
-DHT dht(DHTPIN, DHT22);
+DHT dht(TEMP_HUMI, DHT22);
 float nhiet;
 float doam;
 String descriptionWeather;
@@ -70,13 +77,13 @@ void setup()
   Serial.println(WiFi.localIP());
 
   //Init Servo in 15PIN:
-  myservo.attach(SERVORPIN);
+  myservo.attach(SERVOR);
 }
 
 void loop()
 {
   Serial.print("Analog: ");
-  Serial.print(analogRead(DHTPIN));
+  Serial.print(analogRead(TEMP_HUMI));
   Serial.print("\t");
   Serial.print("Nhiet: ");
   nhiet = dht.readTemperature();
