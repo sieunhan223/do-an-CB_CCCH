@@ -17,8 +17,8 @@
 //PIN List:
 #define SERVOR 15
 #define TEMP_HUMI 4
-#define RAINSENSOR_ANALOG 2
-#define RAINSENSOR_DIGITAL 12
+#define RAINSENSOR_ANALOG 34
+#define RAINSENSOR_DIGITAL 35
 #define TOUCH 0
 #define LED 13
 //SDA_PIN: 21
@@ -155,7 +155,7 @@ void loop()
   Serial.print(analogRain);
   Serial.print("\t");
   Serial.print("digitalRain: ");
-  Serial.print(analogRain);
+  Serial.print(digitalRain);
   Serial.println();
   delay(100);
 
