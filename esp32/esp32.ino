@@ -27,14 +27,14 @@
 
 // DHT Constructor
 DHT dht(TEMP_HUMI, DHT22);
-float nhiet;
+int nhiet;
 float doam;
 String descriptionWeather;
 String idWeather;
 
 // create pass and ssid
-const char *ssid = "Redmi Note 11";
-const char *password = "1122334455";
+const char *ssid = "CNT";
+const char *password = "ct123456";
 
 // Http Constructor
 String apiKey = "520a144824bf298dd6a3ab5cf8ab737e";
@@ -60,6 +60,7 @@ bool touch = 0;
 // rain sensor constructor
 double analogRain;
 bool digitalRain;
+double rainRate;
 
 // orther:
 int cod;
@@ -70,16 +71,19 @@ String dateTime;
 String processor(const String &var)
 {
   if (var == "nhiet")
-    return String(int(nhiet));
+    return String((nhiet));
   if (var == "doam")
-    return String(int(doam)) + "%";
+    return String((doam));
   if (var == "id")
     return idWeather;
   if (var == "descriptionWeather")
     return descriptionWeather;
   if (var == "dateTime")
     return dateTime;
-
+  if (var == "rainRate")
+    return String(rainRate);
+  if (var == "apsuat")
+    return String(apsuat);
   return String();
 }
 void setup()
@@ -112,10 +116,10 @@ void setup()
   myservo.attach(SERVOR);
 
   // Init Light Sensor:
-  // LightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, 0x23);
+  LightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, 0x23);
 
   // Init Pressure sensor:
-  // Bmp.begin();
+  Bmp.begin();
 
   // Init Touch sensor:
   pinMode(TOUCH, INPUT);
@@ -129,10 +133,11 @@ void loop()
 {
   nhiet = dht.readTemperature();
   doam = dht.readHumidity();
-  // lux = LightSensor.readLightLevel();
-  // apsuat = Bmp.readPressure();
+  lux = LightSensor.readLightLevel();
+  apsuat = Bmp.readPressure();
   touch = digitalRead(TOUCH);
   analogRain = analogRead(RAINSENSOR_ANALOG);
+  rainRate = 100 - (analogRain/4095.00)*100;
   digitalRain = digitalRead(RAINSENSOR_DIGITAL);
 
   Serial.print("Nhiet: ");
@@ -142,15 +147,15 @@ void loop()
   Serial.print("Do am: ");
   Serial.print(doam);
 
-  // Serial.print("\t");
-  // Serial.print("Light: ");
-  // Serial.print(lux);
-  // Serial.print(" lx");
+  Serial.print("\t");
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.print(" lx");
 
-  // Serial.print("\t");
-  // Serial.print("Pressure = ");
-  // Serial.print(apsuat);
-  // Serial.print(" Pa");
+  Serial.print("\t");
+  Serial.print("Pressure = ");
+  Serial.print(apsuat);
+  Serial.print(" Pa");
 
   Serial.print("\t");
   Serial.print("Touch: ");
@@ -166,6 +171,9 @@ void loop()
   Serial.print("\t");
   Serial.print("digitalRain: ");
   Serial.print(digitalRain);
+  Serial.print("\t");
+  Serial.print("rain rate: ");
+  Serial.print(rainRate);
   Serial.println();
   delay(100);
 
