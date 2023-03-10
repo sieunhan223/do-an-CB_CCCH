@@ -25,9 +25,15 @@
 // LightSensor I2C Address : 0x23
 // PressureSensor I2C Address : 0x77
 
+// input checkbox constructor
+const char *PARAM_INPUT_LIGHT = "lightInput";
+const char *PARAM_INPUT_SKYLIGHT = "skylightInput";
+String lightStatus = "OFF";
+String skylightStatus = "OFF";
+
 // DHT Constructor
 DHT dht(TEMP_HUMI, DHT22);
-int nhiet;
+float nhiet;
 float doam;
 String descriptionWeather;
 String idWeather;
@@ -45,6 +51,7 @@ HTTPClient http;
 // Servo motor constructor
 Servo myservo;
 int pos;
+int curPos;
 
 // Light sensor constructor
 BH1750 LightSensor;
@@ -84,6 +91,10 @@ String processor(const String &var)
     return String(rainRate);
   if (var == "apsuat")
     return String(apsuat);
+  if (var == "skylight")
+    return String(skylightStatus);
+  if (var == "light")
+    return String(lightStatus);
   return String();
 }
 void setup()
@@ -126,7 +137,7 @@ void setup()
 
   // Init Led:
   pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
+  // digitalWrite(LED, LOW);
 }
 
 void loop()
@@ -137,7 +148,7 @@ void loop()
   apsuat = Bmp.readPressure();
   touch = digitalRead(TOUCH);
   analogRain = analogRead(RAINSENSOR_ANALOG);
-  rainRate = 100 - (analogRain/4095.00)*100;
+  rainRate = 100 - (analogRain / 4095.00) * 100;
   digitalRain = digitalRead(RAINSENSOR_DIGITAL);
 
   Serial.print("Nhiet: ");
@@ -157,13 +168,13 @@ void loop()
   Serial.print(apsuat);
   Serial.print(" Pa");
 
-  Serial.print("\t");
-  Serial.print("Touch: ");
-  Serial.print(touch);
-  if (touch == 1)
-    digitalWrite(LED, HIGH);
-  else
-    digitalWrite(LED, LOW);
+  // Serial.print("\t");
+  // Serial.print("Touch: ");
+  // Serial.print(touch);
+  // if (touch == 1)
+  //   digitalWrite(LED, HIGH);
+  // else
+  //   digitalWrite(LED, LOW);
 
   Serial.print("\t");
   Serial.print("analogRain: ");
@@ -212,7 +223,7 @@ void loop()
   if (cod == HTTP_CODE_OK)
   {
     String s_weatherApi = http.getString();
-    Serial.println(s_weatherApi);
+    // Serial.println(s_weatherApi);
     DynamicJsonDocument doc2(1000);
     DeserializationError error2 = deserializeJson(doc2, s_weatherApi);
     JsonObject obj = doc2.as<JsonObject>();
@@ -228,8 +239,7 @@ void loop()
   else
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
   http.end();
-  // start server:
-  server.begin();
+
   // Tải nội dung file html
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index.html", String(), false, processor); });
@@ -239,17 +249,43 @@ void loop()
   // Tải nội dung file js
   server.on("/weather.js", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/weather.js", String(), false); });
+  server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+      //Get value light, skylight status:
+      if (request->hasParam(PARAM_INPUT_SKYLIGHT)) {
+        skylightStatus = request->getParam(PARAM_INPUT_SKYLIGHT)->value();
+        if (skylightStatus == "OFF"){
+          skylightStatus = "ON";
+          for (pos = curPos; pos >= 0; pos--){
+            myservo.write(pos);
+            delay(10);
+          }
+          curPos = 0;   
+        }
+        else if (skylightStatus == "ON"){
+          skylightStatus = "OFF";
+          for (pos = curPos; pos <= 135; pos++){
+            myservo.write(pos);
+            delay(10);
+          }
+          curPos = 135;
+        }
+        Serial.println(skylightStatus);
+      }
 
-  // test servo:
-  for (pos = 0; pos <= 180; pos += 1)
-  { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-    myservo.write(pos); // tell servo to go to position in variable 'pos'
-    delay(15);          // waits 15ms for the servo to reach the position
-  }
-  for (pos = 180; pos >= 0; pos -= 1)
-  {                     // goes from 180 degrees to 0 degrees
-    myservo.write(pos); // tell servo to go to position in variable 'pos'
-    delay(15);          // waits 15ms for the servo to reach the position
-  }
+      if (request->hasParam(PARAM_INPUT_LIGHT)) {
+        lightStatus = request->getParam(PARAM_INPUT_LIGHT)->value();
+        if (lightStatus == "OFF"){
+          lightStatus = "ON";
+          digitalWrite(LED,LOW);         
+        }
+        else if (lightStatus == "ON"){
+          lightStatus = "OFF";
+          digitalWrite(LED,HIGH);
+        }
+        Serial.println(lightStatus);
+      }
+      request->send(SPIFFS, "/index.html", String(), false, processor); });
+  // start server:
+  server.begin();
 }

@@ -73,7 +73,6 @@ body {
 
 #humidity,
 #rainrate,
-#light,
 #pressure {
 	font-size: 2rem;
 	padding-top: 1rem;
@@ -86,6 +85,7 @@ body {
 	width: 60px;
 	height: 34px;
 	margin: 10px;
+	
 }
 
 .switch input {
@@ -129,7 +129,14 @@ input:checked+.slider:before {
 	-ms-transform: translateX(26px);
 	transform: translateX(26px);
 }
-
+#nut {
+	height: 10mm;
+	width: 20mm;
+}
+#light{
+	padding-top: 1rem;
+	padding-bottom: 1rem;
+}
 /* Rounded sliders */
 .slider.round {
 	border-radius: 34px;
