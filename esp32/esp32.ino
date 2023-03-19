@@ -77,8 +77,9 @@ double rainRate;
 int cod;
 const char *dateTime_data;
 String dateTime;
+int processTime;
 String modeColor = "Red";
-String mode = "Auto";
+String mode = "OFF";
 bool restart = false;
 
 // Hàm thay thế các Tên trong html file
@@ -147,6 +148,25 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
   }
   file.close();
 }
+
+//Hàm sử dụng servo:
+void controlServo(String status){
+  if (status == "ON"){
+    for (pos = curPos; pos <= 130; pos++){
+      myservo.write(pos);
+      delay(10);
+    }
+    curPos = 130;
+  }
+  else{
+    for (pos = curPos; pos >= 0; pos--){
+      myservo.write(pos);
+      delay(10);
+    }
+    curPos = 0;
+  }
+}
+
 void setup()
 {
   WiFi.mode(WIFI_STA);
@@ -350,19 +370,11 @@ void loop()
       skylightStatus = request->getParam(PARAM_INPUT_SKYLIGHT)->value();
       if (skylightStatus == "OFF"){
         skylightStatus = "ON";
-        for (pos = curPos; pos >= 0; pos--){
-          myservo.write(pos);
-          delay(10);
-        }
-        curPos = 0;   
+        controlServo("OFF");
       }
       else if (skylightStatus == "ON"){
         skylightStatus = "OFF";
-        for (pos = curPos; pos <= 130; pos++){
-          myservo.write(pos);
-          delay(10);
-        }
-        curPos = 130;
+        controlServo("ON");
       }
       Serial.println(skylightStatus);
     }
@@ -379,7 +391,24 @@ void loop()
       }
       Serial.println(lightStatus);
     }
+
     request->send(SPIFFS, "/index.html", String(), false, processor); });
+
+  //Nếu có sự kiện change mode:
+  server.on("/checked", HTTP_GET, [](AsyncWebServerRequest *request)
+            { 
+    if (request->hasParam(PARAM_INPUT_MODE)){
+      if (mode == "ON"){
+        mode = "OFF";
+        modeColor = "Red";
+      }
+      else{
+        mode = "ON";
+        modeColor = "Green";
+      }
+    }
+    request->redirect("/");
+     });
   // Tải nội dung file css
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/style.css", "text/css"); });
@@ -387,4 +416,43 @@ void loop()
   server.on("/weather.js", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/weather.js", String(), false); });
   server.begin();
+
+  //xu ly:
+  if (mode == "ON"){
+    processTime = dateTime.substring(13,15).toInt();
+    Serial.println(processTime);
+    if (rainRate < 40.0){
+      if ((processTime >= 6 && processTime <= 10) || (processTime >= 18 && processTime <= 22)){
+      Serial.println("OK");
+      skylightStatus = "ON";
+      controlServo("ON");
+      // delay(10000);
+      }
+      else{
+        Serial.println("No OK");
+        skylightStatus = "OFF";
+        controlServo("OFF");
+        // delay(10000);
+      }      
+    }
+    else if (rainRate > 40.0){
+      Serial.println("No OK");
+      skylightStatus = "OFF";
+      controlServo("OFF");
+      // delay(10000);
+    }
+
+    if ((processTime <= 5 && processTime >= 19) || lux < 100.0){
+      Serial.println("No OK");
+      lightStatus = "ON";
+      digitalWrite(RELAY,LOW);
+    }
+    else{
+      Serial.println("OK");
+      lightStatus = "OFF";
+      digitalWrite(RELAY,HIGH);
+    }
+
+  }
+  
 }
