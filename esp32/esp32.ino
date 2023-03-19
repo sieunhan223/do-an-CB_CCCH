@@ -12,6 +12,7 @@
 #include <Wire.h>
 #include <BH1750.h>
 #include <Adafruit_BMP085.h>
+// #include <WiFiManager.h>
 
 // PIN List:
 #define SERVOR 15
@@ -19,7 +20,7 @@
 #define RAINSENSOR_ANALOG 34
 #define RAINSENSOR_DIGITAL 35
 #define TOUCH 0
-#define LED 13
+#define RELAY 13
 // SDA_PIN: 21
 // SCL_PIN: 22
 // LightSensor I2C Address : 0x23
@@ -28,8 +29,16 @@
 // input submit constructor
 const char *PARAM_INPUT_LIGHT = "lightInput";
 const char *PARAM_INPUT_SKYLIGHT = "skylightInput";
+const char *PARAM_INPUT_MODE = "modeInput";
 String lightStatus = "OFF";
-String skylightStatus = "OFF";
+String skylightStatus = "ON";
+
+// input ssid, password config constructor
+const char *PARAM_INPUT_SSID = "ssid";
+const char *PARAM_INPUT_PWD = "pass";
+String ssid;
+String password;
+// WiFiManager wm;
 
 // DHT Constructor
 DHT dht(TEMP_HUMI, DHT22);
@@ -37,10 +46,6 @@ float nhiet;
 float doam;
 String descriptionWeather;
 String idWeather;
-
-// create pass and ssid
-const char *ssid = "CNT";
-const char *password = "ct123456";
 
 // Http Constructor
 String apiKey = "520a144824bf298dd6a3ab5cf8ab737e";
@@ -72,6 +77,9 @@ double rainRate;
 int cod;
 const char *dateTime_data;
 String dateTime;
+String modeColor = "Red";
+String mode = "Auto";
+bool restart = false;
 
 // Hàm thay thế các Tên trong html file
 String processor(const String &var)
@@ -94,18 +102,89 @@ String processor(const String &var)
     return String(skylightStatus);
   if (var == "light")
     return String(lightStatus);
+  if (var == "modeColor")
+    return modeColor;
+  if (var == "mode")
+    return mode;
   return String();
+}
+String readFile(fs::FS &fs, const char *path)
+{
+  // Serial.printf("Reading file: %s\r\n", path);
+  File file = fs.open(path, "r");
+  if (!file || file.isDirectory())
+  {
+    Serial.println("- empty file or failed to open file");
+    return String();
+  }
+  // Serial.println("- read from file:");
+  String fileContent;
+  while (file.available())
+  {
+    fileContent = file.readStringUntil('\n');
+  }
+  // Serial.println(fileContent);
+  return fileContent;
+}
+// Write file to LittleFS
+void writeFile(fs::FS &fs, const char *path, const char *message)
+{
+  Serial.printf("Writing file: %s\r\n", path);
+
+  File file = fs.open(path, "w");
+  if (!file)
+  {
+    Serial.println("- failed to open file for writing");
+    return;
+  }
+  if (file.print(message))
+  {
+    Serial.println("- file written");
+  }
+  else
+  {
+    Serial.println("- frite failed");
+  }
+  file.close();
 }
 void setup()
 {
-
+  WiFi.mode(WIFI_STA);
   Wire.begin();
   Serial.begin(115200);
+  // //AP ESP:
+  //   if (!WiFi.softAP("Nha Thong Minh")) {
+  //   Serial.println("Soft AP creation failed.");
+  // }
+  // IPAddress myIP = WiFi.softAPIP();
+  // Serial.print("AP IP address: ");
+  // Serial.println(myIP);
+  //   bool res;
+  // res = wm.autoConnect("Tram Thoi Tiet"); // password protected ap
 
-  // Connect wifi:
+  // if(!res) {
+  //     Serial.println("Failed to connect");
+  //     // ESP.restart();
+  // }
+  // else {
+  //     //if you get here you have connected to the WiFi
+  //     Serial.println("connected...yeey :)");
+  // }
+  // Init SPIFFS:
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
+  // Get Value from config files
+  ssid = readFile(SPIFFS, "/ssid.txt");
+  password = readFile(SPIFFS, "/pwd.txt");
+  // Serial.println(ssid);
+  // Serial.println(password);
+  // Connect wifi
   Serial.println("Connecting...");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid.c_str(), password.c_str());
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.print(".");
@@ -114,13 +193,6 @@ void setup()
   Serial.println("Connected!");
   Serial.print("My IP: ");
   Serial.println(WiFi.localIP());
-
-  // Init SPIFFS:
-  if (!SPIFFS.begin(true))
-  {
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
 
   // Init Servo in 15PIN:
   myservo.attach(SERVOR);
@@ -134,13 +206,44 @@ void setup()
   // Init Touch sensor:
   pinMode(TOUCH, INPUT);
 
-  // Init Led:
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
+  // Init relay:
+  pinMode(RELAY, OUTPUT);
+  digitalWrite(RELAY, HIGH);
+
+  // Tải nội dung index2.html
+  server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/index2.html", String(), false, processor); });
+  // Tải nội dung file style2.css
+  server.on("/style2.css", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/style2.css", "text/css"); });
+  // Nếu có sự kiện cập nhật ssid và pwd:
+  server.on("/config/Ok", HTTP_POST, [](AsyncWebServerRequest *request)
+            { 
+              int count = request->params();
+              for (int i = 0; i < count; i++)
+              {
+                AsyncWebParameter* param = request->getParam(i);
+                //HTTP POST get value ssid
+                if (param->name() == PARAM_INPUT_SSID)
+                  ssid = param->value();
+                writeFile(SPIFFS,"/ssid.txt",ssid.c_str());
+                //HTTP POST get value password
+                if (param->name() == PARAM_INPUT_PWD)
+                  password = param->value();
+                writeFile(SPIFFS,"/pwd.txt",password.c_str());
+              }
+              restart = true;
+              request->send(200, "text/plain", "Done. ESP will restart."); });
+  server.begin();
 }
 
 void loop()
 {
+  if (restart)
+  {
+    delay(5000);
+    ESP.restart();
+  }
   nhiet = dht.readTemperature();
   doam = dht.readHumidity();
   lux = LightSensor.readLightLevel();
@@ -171,9 +274,9 @@ void loop()
   // Serial.print("Touch: ");
   // Serial.print(touch);
   // if (touch == 1)
-  //   digitalWrite(LED, HIGH);
+  //   digitalWrite(RELAY, HIGH);
   // else
-  //   digitalWrite(LED, LOW);
+  //   digitalWrite(RELAY, LOW);
 
   Serial.print("\t");
   Serial.print("analogRain: ");
@@ -239,7 +342,7 @@ void loop()
     Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
   http.end();
 
-  // Tải nội dung file html
+  // Tải nội dung file index.html
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { 
     //Get value light, skylight status:
@@ -268,11 +371,11 @@ void loop()
       lightStatus = request->getParam(PARAM_INPUT_LIGHT)->value();
       if (lightStatus == "OFF"){
         lightStatus = "ON";
-        digitalWrite(LED,LOW);         
+        digitalWrite(RELAY,HIGH);         
       }
       else if (lightStatus == "ON"){
         lightStatus = "OFF";
-        digitalWrite(LED,HIGH);
+        digitalWrite(RELAY,LOW);
       }
       Serial.println(lightStatus);
     }

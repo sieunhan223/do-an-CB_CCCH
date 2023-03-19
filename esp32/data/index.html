@@ -24,7 +24,20 @@
 				<i class="fa fa-sun-o" aria-hidden="true"></i>
 				<strong>Weather Station</strong>
 			</a>
-			<span class="lead">%dateTime%</span>
+			<div class="col-5 mx-auto">
+				<div class="col-2 text-center">
+					<form action="/config">
+						<input type="submit" name="modeInput" value="Configuration" id="nut" style="width: 40mm; height: 10mm; left: 40mm;">
+					</form>	
+				</div>
+				<div class="col-12 text-center">
+					<form action="/">
+						<input type="submit" name="modeInput" value="Mode Change" id="nut" style="width: 40mm; height: 10mm; left: -30mm;">
+					</form>	
+				</div>	
+				
+			</div>
+			<div class="lead">%dateTime%</div>
 		</nav>
 		<!-- weather section  -->
 		<div class="container">
@@ -81,9 +94,8 @@
 									%apsuat% Pa
 								</div>
 								<div id="light" class="degree-data col-2 text-center">
-
-									<form action="/">
-										<input type="submit" name="skylightInput" b value="%skylight%" id="nut">
+									 <form action="/">
+										<input type="submit" name="skylightInput" value="%skylight%" id="nut">
 									</form>
 								</div>
 							</div>
@@ -92,8 +104,8 @@
 				</div>
 			</div>
 		</div>
-
 	</div>
+	<footer class="text-right" style="font-size: 2rem; color: %modeColor%;"> <strong>Mode: %mode%</strong> </footer>
 	<!-- javascript file -->
 	<script src="weather.js"></script>
 
