@@ -85,7 +85,7 @@ body {
 	width: 60px;
 	height: 34px;
 	margin: 10px;
-	
+
 }
 
 .switch input {
@@ -130,18 +130,18 @@ input:checked+.slider:before {
 	transform: translateX(26px);
 }
 
-#light{
+#light {
 	padding-top: 1rem;
 	padding-bottom: 1rem;
 }
-  
-  #nut{
+
+#nut {
 	font-family: 'Ubuntu', sans-serif;
 	position: absolute;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	
+
 	width: 20mm;
 	height: 10mm;
 	line-height: 1;
@@ -155,11 +155,9 @@ input:checked+.slider:before {
 	cursor: pointer;
 	overflow: hidden;
 	transition: all .35s;
-  }
-  
-  #nut:hover{
+}
+
+#nut:hover {
 	background: #8C82FC;
 	color: #fff;
-  }
-  
-  
+}

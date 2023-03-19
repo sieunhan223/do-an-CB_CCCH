@@ -109,29 +109,25 @@ String processor(const String &var)
     return mode;
   return String();
 }
+
+// Hàm đọc file
 String readFile(fs::FS &fs, const char *path)
 {
-  // Serial.printf("Reading file: %s\r\n", path);
   File file = fs.open(path, "r");
   if (!file || file.isDirectory())
   {
     Serial.println("- empty file or failed to open file");
     return String();
   }
-  // Serial.println("- read from file:");
   String fileContent;
   while (file.available())
-  {
     fileContent = file.readStringUntil('\n');
-  }
-  // Serial.println(fileContent);
   return fileContent;
 }
-// Write file to LittleFS
+// Hàm viết file
 void writeFile(fs::FS &fs, const char *path, const char *message)
 {
   Serial.printf("Writing file: %s\r\n", path);
-
   File file = fs.open(path, "w");
   if (!file)
   {
@@ -139,27 +135,28 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
     return;
   }
   if (file.print(message))
-  {
     Serial.println("- file written");
-  }
   else
-  {
     Serial.println("- frite failed");
-  }
   file.close();
 }
 
-//Hàm sử dụng servo:
-void controlServo(String status){
-  if (status == "ON"){
-    for (pos = curPos; pos <= 130; pos++){
+// Hàm sử dụng servo:
+void controlServo(String status)
+{
+  if (status == "ON")
+  {
+    for (pos = curPos; pos <= 130; pos++)
+    {
       myservo.write(pos);
       delay(10);
     }
     curPos = 130;
   }
-  else{
-    for (pos = curPos; pos >= 0; pos--){
+  else
+  {
+    for (pos = curPos; pos >= 0; pos--)
+    {
       myservo.write(pos);
       delay(10);
     }
@@ -228,7 +225,7 @@ void setup()
 
   // Init relay:
   pinMode(RELAY, OUTPUT);
-  digitalWrite(RELAY, HIGH);
+  // digitalWrite(RELAY, HIGH);
 
   // Tải nội dung index2.html
   server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -239,21 +236,21 @@ void setup()
   // Nếu có sự kiện cập nhật ssid và pwd:
   server.on("/config/Ok", HTTP_POST, [](AsyncWebServerRequest *request)
             { 
-              int count = request->params();
-              for (int i = 0; i < count; i++)
-              {
-                AsyncWebParameter* param = request->getParam(i);
-                //HTTP POST get value ssid
-                if (param->name() == PARAM_INPUT_SSID)
-                  ssid = param->value();
-                writeFile(SPIFFS,"/ssid.txt",ssid.c_str());
-                //HTTP POST get value password
-                if (param->name() == PARAM_INPUT_PWD)
-                  password = param->value();
-                writeFile(SPIFFS,"/pwd.txt",password.c_str());
-              }
-              restart = true;
-              request->send(200, "text/plain", "Done. ESP will restart."); });
+      int count = request->params();
+      for (int i = 0; i < count; i++)
+      {
+        AsyncWebParameter* param = request->getParam(i);
+        //HTTP POST get value ssid
+        if (param->name() == PARAM_INPUT_SSID)
+          ssid = param->value();
+        writeFile(SPIFFS,"/ssid.txt",ssid.c_str());
+        //HTTP POST get value password
+        if (param->name() == PARAM_INPUT_PWD)
+          password = param->value();
+        writeFile(SPIFFS,"/pwd.txt",password.c_str());
+      }
+      restart = true;
+      request->send(200, "text/plain", "Done. ESP will restart."); });
   server.begin();
 }
 
@@ -336,7 +333,7 @@ void loop()
     dateTime = temp;
   }
   else
-    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
+    Serial.printf("date time-[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
   http.end();
 
   // Lấy API từ http://api.openweathermap.org/data/2.5/weather?lat=10.8230&lon=106.6296&appid=8e1880f460a20463565be25bc573bdc6
@@ -355,17 +352,37 @@ void loop()
     String descriptionWeatherg = obj2["description"];
     String idWeatherg = obj2["id"];
     descriptionWeather = descriptionWeatherg;
+    descriptionWeather.toUpperCase();
     idWeather = idWeatherg;
     Serial.println(descriptionWeather);
   }
   else
-    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
+    Serial.printf("weather-[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
   http.end();
 
   // Tải nội dung file index.html
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/index.html", String(), false, processor); });
+
+  // Nếu có sự kiện change mode:
+  server.on("/checked", HTTP_GET, [](AsyncWebServerRequest *request)
             { 
-    //Get value light, skylight status:
+    if (request->hasParam(PARAM_INPUT_MODE)){
+      if (mode == "ON"){
+        mode = "OFF";
+        modeColor = "Red";
+      }
+      else{
+        mode = "ON";
+        modeColor = "Green";
+      }
+    }
+    request->redirect("/"); });
+
+  // Nếu có sự kiện skylight, light:
+  server.on("/checkeddivice", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+        //Get value light, skylight status:
     if (request->hasParam(PARAM_INPUT_SKYLIGHT)) {
       skylightStatus = request->getParam(PARAM_INPUT_SKYLIGHT)->value();
       if (skylightStatus == "OFF"){
@@ -391,68 +408,54 @@ void loop()
       }
       Serial.println(lightStatus);
     }
-
-    request->send(SPIFFS, "/index.html", String(), false, processor); });
-
-  //Nếu có sự kiện change mode:
-  server.on("/checked", HTTP_GET, [](AsyncWebServerRequest *request)
-            { 
-    if (request->hasParam(PARAM_INPUT_MODE)){
-      if (mode == "ON"){
-        mode = "OFF";
-        modeColor = "Red";
-      }
-      else{
-        mode = "ON";
-        modeColor = "Green";
-      }
-    }
-    request->redirect("/");
-     });
+    request->redirect("/"); });
   // Tải nội dung file css
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/style.css", "text/css"); });
-  // Tải nội dung file js
-  server.on("/weather.js", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/weather.js", String(), false); });
   server.begin();
 
-  //xu ly:
-  if (mode == "ON"){
-    processTime = dateTime.substring(13,15).toInt();
-    Serial.println(processTime);
-    if (rainRate < 40.0){
-      if ((processTime >= 6 && processTime <= 10) || (processTime >= 18 && processTime <= 22)){
-      Serial.println("OK");
-      skylightStatus = "ON";
-      controlServo("ON");
-      // delay(10000);
+  // Xử lý:
+  if (mode == "ON")
+  {
+    processTime = dateTime.substring(13, 15).toInt();
+    // Serial.println(processTime);
+    if (rainRate < 40.0)
+    {
+      // Xử lý giếng trời
+      if ((processTime >= 6 && processTime <= 10) || (processTime >= 18 && processTime <= 22))
+      {
+        Serial.println("OK");
+        skylightStatus = "ON";
+        controlServo("ON");
+        // delay(10000);
       }
-      else{
+      else
+      {
         Serial.println("No OK");
         skylightStatus = "OFF";
         controlServo("OFF");
         // delay(10000);
-      }      
+      }
     }
-    else if (rainRate > 40.0){
+    else if (rainRate > 40.0)
+    {
       Serial.println("No OK");
       skylightStatus = "OFF";
       controlServo("OFF");
       // delay(10000);
     }
-
-    if ((processTime <= 5 && processTime >= 19) || lux < 100.0){
+    // Xử lý Đèn
+    if ((processTime <= 5 && processTime >= 19) || lux < 100.0)
+    {
       Serial.println("No OK");
       lightStatus = "ON";
-      digitalWrite(RELAY,LOW);
+      digitalWrite(RELAY, LOW);
     }
-    else{
+    else
+    {
       Serial.println("OK");
       lightStatus = "OFF";
-      digitalWrite(RELAY,HIGH);
+      digitalWrite(RELAY, HIGH);
     }
-
   }
-  
 }
