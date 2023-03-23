@@ -78,8 +78,8 @@ int cod;
 const char *dateTime_data;
 String dateTime;
 int processTime;
-String modeColor = "Red";
-String mode = "OFF";
+String modeColor;
+String mode;
 bool restart = false;
 
 // Hàm thay thế các Tên trong html file
@@ -211,6 +211,10 @@ void setup()
   Serial.print("My IP: ");
   Serial.println(WiFi.localIP());
 
+  //Get value from mode, modeColor file;
+  mode = readFile(SPIFFS,"/mode.txt");
+  modeColor = readFile(SPIFFS,"/modeColor.txt");
+
   // Init Servo in 15PIN:
   myservo.attach(SERVOR);
 
@@ -227,10 +231,10 @@ void setup()
   pinMode(RELAY, OUTPUT);
   // digitalWrite(RELAY, HIGH);
 
-  // Tải nội dung index2.html
+  // Upload nội dung index2.html
   server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index2.html", String(), false, processor); });
-  // Tải nội dung file style2.css
+  // Upload nội dung file style2.css
   server.on("/style2.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/style2.css", "text/css"); });
   // Nếu có sự kiện cập nhật ssid và pwd:
@@ -360,7 +364,7 @@ void loop()
     Serial.printf("weather-[HTTP] GET... failed, error: %s\n", http.errorToString(cod).c_str());
   http.end();
 
-  // Tải nội dung file index.html
+  // Upload nội dung file index.html
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index.html", String(), false, processor); });
 
@@ -371,10 +375,15 @@ void loop()
       if (mode == "ON"){
         mode = "OFF";
         modeColor = "Red";
+        writeFile(SPIFFS,"/mode.txt","OFF");
+        writeFile(SPIFFS,"/modeColor.txt","Red");
+
       }
       else{
         mode = "ON";
         modeColor = "Green";
+        writeFile(SPIFFS,"/mode.txt","ON");
+        writeFile(SPIFFS,"/modeColor.txt","Green");
       }
     }
     request->redirect("/"); });
@@ -409,7 +418,7 @@ void loop()
       Serial.println(lightStatus);
     }
     request->redirect("/"); });
-  // Tải nội dung file css
+  // Upload nội dung file css
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/style.css", "text/css"); });
   server.begin();
