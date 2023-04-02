@@ -166,27 +166,18 @@ void controlServo(String status)
 
 void setup()
 {
-  WiFi.mode(WIFI_STA);
+  // WiFi.mode(WIFI_STA);
   Wire.begin();
   Serial.begin(115200);
-  // //AP ESP:
-  //   if (!WiFi.softAP("Nha Thong Minh")) {
-  //   Serial.println("Soft AP creation failed.");
-  // }
-  // IPAddress myIP = WiFi.softAPIP();
-  // Serial.print("AP IP address: ");
-  // Serial.println(myIP);
-  //   bool res;
-  // res = wm.autoConnect("Tram Thoi Tiet"); // password protected ap
 
-  // if(!res) {
-  //     Serial.println("Failed to connect");
-  //     // ESP.restart();
-  // }
-  // else {
-  //     //if you get here you have connected to the WiFi
-  //     Serial.println("connected...yeey :)");
-  // }
+  // Kích hoạt chế độ AP
+  Serial.println("Setting AP (Access Point)");
+  Serial.print("Configuring access point...");
+  WiFi.softAP("Trạm Thời Tiết");
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+
   // Init SPIFFS:
   if (!SPIFFS.begin(true))
   {
@@ -197,8 +188,34 @@ void setup()
   // Get Value from config files
   ssid = readFile(SPIFFS, "/ssid.txt");
   password = readFile(SPIFFS, "/pwd.txt");
-  // Serial.println(ssid);
-  // Serial.println(password);
+  Serial.println(ssid);
+  Serial.println(password);
+
+  // Upload nội dung index2.html
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/index2.html","text/html"); });
+  server.serveStatic("/", SPIFFS, "/");
+
+  // Nếu có sự kiện cập nhật ssid và pwd:
+  server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
+            { 
+      int count = request->params();
+      for (int i = 0; i < count; i++)
+      {
+        AsyncWebParameter* param = request->getParam(i);
+        //HTTP POST get value ssid
+        if (param->name() == PARAM_INPUT_SSID)
+          ssid = param->value();
+        writeFile(SPIFFS,"/ssid.txt",ssid.c_str());
+        //HTTP POST get value password
+        if (param->name() == PARAM_INPUT_PWD)
+          password = param->value();
+        writeFile(SPIFFS,"/pwd.txt",password.c_str());
+      }
+      restart = true;
+      request->send(200, "text/plain", "Done. ESP will restart."); });
+  server.begin();
+
   // Connect wifi
   Serial.println("Connecting...");
   WiFi.begin(ssid.c_str(), password.c_str());
@@ -230,32 +247,7 @@ void setup()
   // Init relay:
   pinMode(RELAY, OUTPUT);
   // digitalWrite(RELAY, HIGH);
-
-  // Upload nội dung index2.html
-  server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/index2.html", String(), false, processor); });
-  // Upload nội dung file style2.css
-  server.on("/style2.css", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/style2.css", "text/css"); });
-  // Nếu có sự kiện cập nhật ssid và pwd:
-  server.on("/config/Ok", HTTP_POST, [](AsyncWebServerRequest *request)
-            { 
-      int count = request->params();
-      for (int i = 0; i < count; i++)
-      {
-        AsyncWebParameter* param = request->getParam(i);
-        //HTTP POST get value ssid
-        if (param->name() == PARAM_INPUT_SSID)
-          ssid = param->value();
-        writeFile(SPIFFS,"/ssid.txt",ssid.c_str());
-        //HTTP POST get value password
-        if (param->name() == PARAM_INPUT_PWD)
-          password = param->value();
-        writeFile(SPIFFS,"/pwd.txt",password.c_str());
-      }
-      restart = true;
-      request->send(200, "text/plain", "Done. ESP will restart."); });
-  server.begin();
+  
 }
 
 void loop()
@@ -290,14 +282,6 @@ void loop()
   Serial.print("Pressure = ");
   Serial.print(apsuat);
   Serial.print(" Pa");
-
-  // Serial.print("\t");
-  // Serial.print("Touch: ");
-  // Serial.print(touch);
-  // if (touch == 1)
-  //   digitalWrite(RELAY, HIGH);
-  // else
-  //   digitalWrite(RELAY, LOW);
 
   Serial.print("\t");
   Serial.print("analogRain: ");
@@ -365,8 +349,11 @@ void loop()
   http.end();
 
   // Upload nội dung file index.html
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+  server.on("/home", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/index.html", String(), false, processor); });
+    // Upload nội dung file css
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/style.css", "text/css"); });
 
   // Nếu có sự kiện change mode:
   server.on("/checked", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -386,7 +373,7 @@ void loop()
         writeFile(SPIFFS,"/modeColor.txt","Green");
       }
     }
-    request->redirect("/"); });
+    request->redirect("/home"); });
 
   // Nếu có sự kiện skylight, light:
   server.on("/checkeddivice", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -417,10 +404,8 @@ void loop()
       }
       Serial.println(lightStatus);
     }
-    request->redirect("/"); });
-  // Upload nội dung file css
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/style.css", "text/css"); });
+    request->redirect("/home"); });
+
   server.begin();
 
   // Xử lý:
@@ -431,7 +416,7 @@ void loop()
     if (rainRate < 40.0)
     {
       // Xử lý giếng trời
-      if ((processTime >= 6 && processTime <= 10) || (processTime >= 18 && processTime <= 22))
+      if ((processTime >= 6 && processTime <= 10) || (processTime >= 16 && processTime <= 22))
       {
         Serial.println("OK");
         skylightStatus = "ON";
